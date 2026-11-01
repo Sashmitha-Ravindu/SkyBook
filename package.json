@@ -58,5 +58,13 @@
     "@angular/platform-browser": "~22.2.0",
     "@angular/router": "~22.2.0",
     "rxjs": "~7.8.0"
+  },
+  "allowScripts": {
+    "cypress@16.2.1": true,
+    "esbuild@0.28.2": true,
+    "nx@24.0.3": true,
+    "lmdb": false,
+    "msgpackr-extract": false,
+    "@parcel/watcher": false
   }
 }
