@@ -1,0 +1,112 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  NX_NO_CLOUD: true
+
+jobs:
+  checks:
+    name: Lint, test and build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+        env:
+          CYPRESS_INSTALL_BINARY: 0
+
+      - uses: nrwl/nx-set-shas@v5
+
+      - name: Check formatting
+        run: npx nx format:check
+
+      - name: Lint, test and build affected projects
+        run: npx nx affected -t lint test build
+
+  e2e:
+    name: End-to-end tests
+    needs: checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/Cypress
+          key: cypress-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - run: npm ci
+
+      - uses: nrwl/nx-set-shas@v5
+
+      - name: Run affected end-to-end tests
+        run: npx nx affected -t e2e
+
+  deploy:
+    name: Deploy
+    needs: [checks, e2e]
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ github.ref_name == 'main' && 'production' || 'staging' }}
+      url: ${{ steps.deploy.outputs.url }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+        env:
+          CYPRESS_INSTALL_BINARY: 0
+
+      - name: Build shell
+        run: npx nx build shell
+
+      - name: Deploy to Netlify
+        id: deploy
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+        run: |
+          if [ "$GITHUB_REF_NAME" = "main" ]; then
+            target=(--prod)
+            url_field=url
+          else
+            target=(--alias=develop)
+            url_field=deploy_url
+          fi
+          npx --yes netlify-cli@27.16.1 deploy \
+            --dir=dist/apps/shell/browser \
+            --no-build \
+            --message="${GITHUB_SHA::7}" \
+            --json "${target[@]}" > deploy.json
+          echo "url=$(jq -r ".$url_field" deploy.json)" >> "$GITHUB_OUTPUT"

@@ -1,5 +1,7 @@
 # SkyBook
 
+[![CI](https://github.com/Sashmitha-Ravindu/SkyBook/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Sashmitha-Ravindu/SkyBook/actions/workflows/ci.yml)
+
 A flight booking web app built as a micro-frontend system: an Angular shell runs the booking flow, and a React seat map is loaded into it at runtime through Module Federation.
 
 > **Status:** in active development. See the [roadmap](#roadmap).
@@ -33,6 +35,22 @@ git clone https://github.com/Sashmitha-Ravindu/SkyBook.git
 cd SkyBook
 npm ci
 ```
+
+## Development
+
+```bash
+npx nx serve shell                    # http://localhost:4200
+npx nx run-many -t lint test build    # all checks
+npx nx e2e shell-e2e                  # Cypress end-to-end tests
+```
+
+## Continuous integration and deployment
+
+GitHub Actions runs on every pull request and on pushes to `develop` and `main`:
+
+1. Formatting check, then lint, unit tests and build for affected projects
+2. Cypress end-to-end tests
+3. Deployment to Netlify, after all checks pass: `develop` to staging, `main` to production
 
 ## Project structure
 
